@@ -24,7 +24,7 @@ Reuse an existing ChatGPT conversation only for the same problem and same eviden
 1. Gather local context first.
    - Identify the user's goal, current failure, candidate approaches, known constraints, and acceptance gates.
    - Separate confirmed evidence from guesses.
-   - For code or robotics work, include concrete artifact names, model/checkpoint names, logs, metrics, and what has already failed.
+   - For technical work, include concrete artifact names, relevant versions, logs, metrics, and what has already failed.
 
 2. Write a focused prompt.
    - State the problem and goal plainly.

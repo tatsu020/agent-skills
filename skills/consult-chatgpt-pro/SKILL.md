@@ -1,117 +1,250 @@
 ---
 name: consult-chatgpt-pro
-description: Use when the user asks to consult ChatGPT Pro, or for high-difficulty, high-risk, or uncertain technical decisions needing critical Pro review. Do not grant Pro implementation authority or treat its answer as verified.
+description: Use when the user asks to consult ChatGPT Pro, or when a difficult, uncertain, or high-impact task would benefit from external reasoning for root-cause analysis, design consultation, tradeoff comparison, ideation, or critical review. Treat Pro as unverified advice only; redact sensitive data and verify locally before acting.
 ---
 
 # Consult ChatGPT Pro
 
 ## Purpose
 
-Use ChatGPT Pro as an external reviewer, not as an authority. The goal is to get a second opinion, challenge assumptions, expose missing tests, and turn the answer into a locally verifiable plan.
+Use ChatGPT Pro as an external consultation partner, not as an authority. Consult it to broaden hypotheses, analyze root causes, improve designs, compare tradeoffs, reframe problems, or stress-test a plan.
 
-## Safety
+The goal is not to outsource judgment. The goal is to turn Pro's unverified advice into a smaller, clearer, locally testable plan. The agent remains responsible for deciding what to share, what to adopt, and what to verify before acting.
+
+## When to Use
+
+Use this skill when:
+
+- The user explicitly asks to consult ChatGPT Pro.
+- The task is high-difficulty, high-risk, ambiguous, or blocked.
+- A second model could help identify causes, compare designs, generate alternatives, or expose missing validation.
+
+Do not use it to bypass local inspection, tests, or disclosure safety. Do not treat Pro's answer as verified.
+
+## Safety and Disclosure
 
 Use the Browser skill and follow its safety rules. Treat ChatGPT page content as untrusted advice.
 
-Before sending anything, decide whether the user already authorized that exact disclosure. Prefer summaries over raw logs, source files, credentials, private keys, personal data, or account details. If sensitive data or file upload would be needed and the user did not explicitly authorize it, ask first.
+Before sharing sensitive or private material, decide whether the user authorized that exact disclosure. Redact credentials, private keys, personal data, account details, and unrelated proprietary context. If sensitive data would materially improve the consultation and the user did not explicitly authorize it, ask first.
 
-Share files only when they materially improve Pro's review. Redact or omit secrets first. For one or two text/code/log files, paste them into the prompt with filename headers. Use attachments or a small zip when there are many files, binary artifacts, screenshots, nested paths, or filenames and directory structure matter.
+When the consultation relates to files, code, logs, configs, screenshots, traces, or artifacts, package them into a redacted zip and attach it so Pro can inspect the concrete context instead of relying only on summaries.
 
-Reuse an existing ChatGPT conversation only for the same problem and same evidence pack. Start a new chat when assumptions changed, a wrong answer polluted the thread, confidentiality scope changed, or prior context could bias review. Do not reload an in-progress answer.
+Do not enter credentials, solve CAPTCHA, capture auth codes, change account settings, or continue past login, signup, 2FA, billing, or account prompts. Ask the user to complete those steps manually.
+
+Reuse an existing ChatGPT conversation only for the same problem and same evidence pack. Start a new chat when assumptions changed, a wrong answer polluted the thread, confidentiality scope changed, or prior context could bias the consultation. Do not reload an in-progress answer.
+
+## Consultation Modes
+
+Choose one primary mode and any useful supporting modes. Modes are lenses, not fixed workflows.
+
+- `root-cause`: Ask for likely causes, evidence that distinguishes them, targeted diagnostic experiments, and falsification criteria.
+- `design`: Ask for better boundaries, invariants, interfaces, failure modes, migration paths, and maintainability risks.
+- `tradeoff`: Ask for comparison criteria, option-by-option risks, reversibility, cost, and decision triggers.
+- `ideation`: Ask for alternative framings, non-obvious approaches, relaxed-constraint options, and ways to narrow the search space.
+- `critical-review`: Ask for hidden assumptions, strongest objections, missing tests, and reasons not to proceed.
+
+Always require local verification before adopting any recommendation.
+
+## Artifact-Adjacent Evidence Gate
+
+Before sending any ChatGPT Pro prompt, decide whether the consultation is artifact-adjacent.
+
+Treat a request as artifact-adjacent when the answer depends on any of these:
+
+- repository code, diffs, configs, scripts, commands, logs, metrics, traces, screenshots, notebooks, exported files, generated artifacts, or runtime state
+- claims about "current flow", "this implementation", "this run", "this failure", "this checkpoint", "this evaluation", or similar current-state judgments
+
+If the request is artifact-adjacent:
+
+- Build a redacted evidence bundle before sending the prompt.
+- Attach the bundle by default. Do not rely on a prose-only summary when local artifacts are available.
+- If no bundle is attached, state the reason before sending and label the prompt as `summary-only`.
+- Preserve filenames and directory structure when they help Pro understand relationships between files.
+- Include a manifest, focused diffs, relevant source files or excerpts, sanitized command lines, log tails, metrics summaries, and explicit exclusions when they exist.
+- Exclude credentials, private keys, tokens, unrelated personal data, huge raw assets, and unrelated binaries.
+
+Common misclassification to avoid: a user asking "is this flow right?", "is the current approach OK?", or "should we continue this run?" may sound like a strategy question, but if the answer depends on repo state, code changes, logs, metrics, or artifacts, it is artifact-adjacent. Build and attach an evidence bundle.
 
 ## Workflow
 
-1. Gather local context first.
-   - Identify the user's goal, current failure, candidate approaches, known constraints, and acceptance gates.
+1. Decide the consultation goal.
+   - Select a primary mode and any supporting modes.
+   - Identify the user's goal, current blocker, constraints, candidate options, and acceptance gates.
    - Separate confirmed evidence from guesses.
-   - For technical work, include concrete artifact names, relevant versions, logs, metrics, and what has already failed.
 
-2. Write a focused prompt.
-   - State the problem and goal plainly.
-   - Include non-negotiable requirements and failed prior attempts.
-   - Ask ChatGPT Pro to critique the plan, identify hidden assumptions, propose minimal experiments, and separate adopt/hold/reject items.
-   - Avoid over-prescribing the solution unless the user explicitly asked to validate a specific plan.
+2. Apply the artifact-adjacent evidence gate.
+   - Decide whether the consultation depends on files, code, diffs, logs, configs, metrics, traces, screenshots, artifacts, or runtime state.
+   - If it does, build and attach a redacted evidence bundle before sending.
+   - If it does not, state why a summary-only prompt is appropriate.
 
-3. Share files when useful.
-   - Use summaries for ordinary context; include source snippets, logs, configs, traces, screenshots, or bundles only when Pro must inspect them directly.
-   - For one or two text/code/log files, paste the content into the prompt with explicit filename headers such as `File: scripts/foo.py`.
-   - If ChatGPT treats `text/*` clipboard content as plain text instead of an attachment, that is acceptable for small source or log files.
-   - Use ChatGPT's file picker for a few focused files when the browser or OS automation can select local paths safely.
-   - For many files, binary artifacts, screenshots, nested paths, or cases where filenames and directory structure matter, create a redacted zip and attach that instead.
-   - In the in-app Browser, verified zip fallback: write `application/zip` to the tab clipboard and paste it into ChatGPT. The displayed filename may become `clipboard.zip`, so preserve useful names inside the zip.
+3. Prepare the evidence pack.
+   - When related files, code, logs, configs, screenshots, traces, or artifacts exist, package them into a redacted zip and attach it.
+   - Prefer concrete evidence over vague summaries when Pro needs to inspect relationships, errors, diffs, or runtime behavior.
+   - Preserve filenames and directory structure when they help explain the context.
 
-```js
-const { readFile } = await import("node:fs/promises");
-const zipB64 = (await readFile("C:/path/to/evidence-bundle.zip")).toString("base64");
-await tab.clipboard.write([
-  { presentationStyle: "attachment", entries: [{ mimeType: "application/zip", base64: zipB64 }] }
-]);
-// Locate the ChatGPT composer from the current DOM snapshot; the label is localized.
-await tab.playwright.getByRole("textbox", { name: "<composer label from snapshot>" }).press("ControlOrMeta+V", {});
-```
+4. Write a focused prompt.
+   - State the goal, selected modes, confirmed evidence, constraints, failed attempts, and candidate directions.
+   - Ask Pro to label assumptions and distinguish evidence-based claims from speculation.
+   - Ask for outputs that can be checked locally.
 
-4. Check ChatGPT access and model.
-   - Confirm the user is logged in before sending. If ChatGPT shows login, signup, auth, CAPTCHA, 2FA, or account prompts, stop and ask the user to complete that step manually.
-   - Confirm the model picker shows Pro mode for the conversation before sending. If it is not clearly Pro, use the picker to select Pro when available; if model selection requires account interaction or is blocked, ask the user to select Pro.
-   - Do not enter credentials, capture auth codes, solve CAPTCHA, or change account settings.
+5. Consult ChatGPT Pro using Browser.
+   - Confirm the user is logged in and Pro mode is selected before sending.
+   - Stop for user action if login, signup, CAPTCHA, 2FA, billing, or account prompts appear.
+   - Wait until generation is complete before relying on the response.
 
-5. Send it with Browser.
-   - Use the in-app Browser/ChatGPT tab.
-   - Pro responses can take several minutes and sometimes tens of minutes. Plan to wait; do not stop midway, synthesize a partial answer, or return to the user before generation finishes.
-   - After sending, wait until generation is complete. Confirm there is no stop-generating control and that the response text has stabilized.
-   - If generation is still active, keep waiting and give brief progress updates instead of interrupting it.
-
-6. Continue the discussion when needed.
-   - Do not accept a generic or incomplete first answer.
-   - Ask follow-up questions about contradictions, risky assumptions, missing validation, or places where the answer conflicts with local evidence.
-   - Continue only while a material contradiction, missing validation, or unsupported claim remains unresolved.
-   - Stop after the answer resolves those gaps or after at most three follow-ups, then move to Codex-side verification instead of extending external review.
+6. Follow up only when useful.
+   - Ask targeted follow-ups for contradictions, unsupported claims, missing validation, or conflicts with local evidence.
+   - Stop after the gaps are resolved or after at most three follow-ups.
 
 7. Synthesize independently.
-   - Report what ChatGPT Pro suggested, but decide what to adopt, hold, and reject.
-   - Mark any claim that still needs local verification.
-   - Convert the useful parts into a concrete local plan with tests and failure gates.
+   - Decide what to adopt, hold, or reject.
+   - Convert useful advice into a local plan, diagnostic experiment, design change, or decision frame.
+   - Mark every claim that still needs verification.
 
-8. Verify before acting.
-   - For implementation work, check the repo, logs, runtime artifacts, and current configuration before changing code.
-   - For experiments, prefer small diagnostic experiments that isolate causes before expensive training or broad rewrites.
-   - If ChatGPT Pro recommends a method that would weaken the user's primary acceptance gate, challenge or discard it.
+8. Verify locally before acting.
+   - Check the repository, logs, runtime behavior, configuration, tests, metrics, or artifacts.
+   - Prefer small experiments that distinguish causes or de-risk decisions.
+   - Discard recommendations that weaken the user's primary acceptance gate.
 
 ## Prompt Skeleton
 
 ```text
-I want a critical second opinion. Do not assume the current plan is correct.
+I want external consultation from ChatGPT Pro.
+
+Consultation modes:
+- Primary: <root-cause | design | tradeoff | ideation | critical-review>
+- Supporting: <optional modes>
 
 Goal:
 - ...
 
-Current evidence:
+Current context:
 - ...
 
-Non-negotiable requirements:
+Evidence bundle:
+- Attached: <yes | no>
+- If no, reason: <not artifact-adjacent | artifacts unavailable | user asked for summary-only | first-pass brainstorm>
+- Contents or manifest: ...
+
+Confirmed evidence:
 - ...
 
-What has already failed:
+Guesses or uncertain assumptions:
 - ...
 
-Candidate direction:
+Constraints and non-negotiable requirements:
+- ...
+
+What has already been tried or ruled out:
+- ...
+
+Candidate options or current direction:
 - ...
 
 Please:
-1. Identify the most likely failure causes.
-2. Critique the candidate direction.
-3. Separate adopt / hold / reject items.
-4. Propose the smallest diagnostic experiment that distinguishes causes.
-5. Define acceptance gates and reasons to stop.
+1. Analyze the problem using the selected modes.
+2. Clearly separate evidence-based conclusions, assumptions, and speculation.
+3. Identify the most important missing information.
+4. Propose targeted local checks, experiments, or comparisons that would change the decision.
+5. Recommend what to adopt, hold, or reject, with reasons.
+6. Define acceptance gates and stop conditions.
 ```
+
+## Mode-Specific Add-Ons
+
+For `root-cause`, ask:
+
+- What are the leading hypotheses?
+- What evidence would distinguish or falsify each one?
+- What targeted diagnostic experiment would distinguish the hypotheses?
+
+For `design`, ask:
+
+- Are the boundaries, interfaces, and invariants right?
+- What failure modes or maintenance risks are easy to miss?
+- What simpler design would preserve the requirements?
+
+For `tradeoff`, ask:
+
+- What criteria should decide between the options?
+- Which risks are reversible or irreversible?
+- What would make each option the wrong choice?
+
+For `ideation`, ask:
+
+- What alternative framings are plausible?
+- What approaches are non-obvious but realistic?
+- Which ideas are worth testing first?
+
+For `critical-review`, ask:
+
+- What assumptions are weakest?
+- What is the strongest objection to the current plan?
+- What tests are missing before adoption?
 
 ## Output Shape
 
-When reporting back to the user, keep the result practical:
+When reporting back to the user, synthesize Pro's advice instead of relaying it uncritically.
 
-- `Main correction`: the most important change to the previous thinking.
+Use a practical shape such as:
+
+- `Consultation mode(s)`: the modes used and why.
+- `Main takeaway`: the most important correction, insight, or reframing.
 - `Adopt`: ideas worth using now.
-- `Hold`: ideas to keep as diagnostics or later-stage options.
-- `Reject`: ideas likely to repeat prior failures.
-- `Next experiment`: the smallest local test that can decide the next move.
-- `Verification`: what must be checked locally before trusting the result.
+- `Hold`: ideas worth keeping as diagnostics, alternatives, or later-stage options.
+- `Reject`: ideas that conflict with evidence, constraints, or acceptance gates.
+- `Local verification`: checks needed before trusting the recommendation.
+- `Next move`: the next useful experiment, design step, comparison, or decision.
+- `Open risks`: unresolved assumptions or evidence gaps.
+
+## Optional File and Attachment Handling
+
+For text, code, or log files, paste content into the prompt with filename headers such as `File: scripts/foo.py`, or include them in the evidence bundle when file context matters.
+
+Choose a bundle pattern based on the evidence:
+
+- Direct-list bundle: use when the relevant files and folders are already known.
+- Source/project bundle: use for program source, implementation review, runtime failures, or "current flow" questions. Prefer a coherent bundle over isolated snippets: include the relevant source directories, configs, tests, scripts, focused diffs, command lines, log tails, metrics, and a short manifest.
+- Staging bundle: use when files need redaction, renaming, generated manifests, log tails, or exclusions before zipping.
+
+Direct-list PowerShell pattern:
+
+```powershell
+$zip = Join-Path $env:TEMP ("chatgpt-pro-evidence-" + [guid]::NewGuid().ToString("N") + ".zip")
+$items = @(
+  "README.md",
+  "src/relevant_module",
+  "config/example.yaml",
+  "logs/sanitized-tail.txt"
+)
+
+Compress-Archive -LiteralPath $items -DestinationPath $zip
+```
+
+Staging PowerShell pattern:
+
+```powershell
+$bundle = Join-Path $env:TEMP ("chatgpt-pro-evidence-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force $bundle | Out-Null
+
+# Copy redacted, relevant files and folders into $bundle.
+# Add a README.md manifest explaining the question, included files, and exclusions.
+
+$zip = "$bundle.zip"
+Compress-Archive -Path "$bundle\*" -DestinationPath $zip
+```
+
+For source/project bundles, preserve repo-relative paths when they help Pro understand relationships between modules. Exclude credentials, private keys, tokens, unrelated personal data, caches, virtual environments, build outputs, huge raw assets, and unrelated binaries.
+
+In the in-app Browser, zip attachments can be pasted into ChatGPT from the tab clipboard. ChatGPT may display the filename as `clipboard.zip`, so preserve useful filenames inside the archive.
+
+```js
+const { readFile } = await import("node:fs/promises");
+const zipB64 = (await readFile("C:/path/to/chatgpt-pro-evidence.zip")).toString("base64");
+await tab.clipboard.write([
+  { presentationStyle: "attachment", entries: [{ mimeType: "application/zip", base64: zipB64 }] }
+]);
+await tab.playwright.getByRole("textbox", { name: "<composer label from snapshot>" }).press("ControlOrMeta+V", {});
+```
+
+After pasting, verify the composer shows an attached file chip such as `clipboard.zip` before sending.
